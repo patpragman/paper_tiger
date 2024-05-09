@@ -33,6 +33,8 @@ Note: The requirements file should contain all the necessary libraries like open
 To use this script, you must provide the necessary command line arguments. Here is an example command to run the script:
 
 ```bash
+# make sure to use your openAI api key, so set the environmental variable before running
+export OPENAI_API_KEY=<your key goes here>
 python paper_tiger.py --input_file "path/to/input.txt" --output_file "path/to/output.mp3" --voice "nova" --prompt "lecturer" --text_processing_model "gpt-4-turbo-preview" --text_to_speech_model "tts-1"
 ```
 
