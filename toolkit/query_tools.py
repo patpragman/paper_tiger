@@ -2,7 +2,7 @@ from openai import OpenAI
 from io import BytesIO
 import tiktoken
 from pydub import AudioSegment
-from prompts.prompts import ExecutiveSummarizer, NewsCaster
+from prompts.prompts import ExecutiveSummarizer, NewsCaster, Lecturer, Prompt
 
 
 def join_snippets(snippets: list[AudioSegment]) -> AudioSegment:
@@ -21,12 +21,12 @@ def num_tokens_from_string(string: str, encoding: tiktoken.Encoding = tiktoken.g
 
 def get_text_summary(text: str,
                      context: ExecutiveSummarizer,
-                     model: str = 'gpt-4-turbo-preview',
+                     text_model: str = 'gpt-4-turbo-preview',
                      ) -> str:
     openAI_client = OpenAI()
 
     response = openAI_client.chat.completions.create(
-        model=model,
+        model=text_model,
         messages=[{"role": "system", "content": context.context},
                   {"role": "user", "content": f"analyze the following text please:\n{text}"}]
     )
@@ -34,7 +34,7 @@ def get_text_summary(text: str,
     return response
 
 
-def get_audio_from_text(text: str, model="tts-1", voice="nova", speed=1) -> AudioSegment:
+def get_audio_from_text(text: str, audio_model="tts-1", voice="nova", speed=1) -> AudioSegment:
     """
     Take in text, output an AudioSegment
 
@@ -47,7 +47,7 @@ def get_audio_from_text(text: str, model="tts-1", voice="nova", speed=1) -> Audi
     openAI_client = OpenAI()
 
     response = openAI_client.audio.speech.create(
-        model=model,
+        model=audio_model,
         voice=voice,
         speed=speed,
         input=text
@@ -57,17 +57,22 @@ def get_audio_from_text(text: str, model="tts-1", voice="nova", speed=1) -> Audi
     return audio_segment
 
 
-def executive_summarizer(text: str, context_obj: ExecutiveSummarizer = ExecutiveSummarizer(),
-                         text_model: str = "gpt-4-turbo-preview", audio_model='tts-1', voice='nova') -> AudioSegment:
+def route_model(tool_choice: str, *args, **kwargs):
+    mapping = {
+        "executive": ExecutiveSummarizer(),
+        "newscast": NewsCaster(),
+        "lecturer": Lecturer(),
+    }
+    if tool_choice in mapping:
+        return generic_function(*args, context_obj=mapping[tool_choice.lower()], **kwargs)
+    else:
+        raise ValueError(f'The following tool:  {tool_choice} is not available.')
+
+def generic_function(content: str = "Testing 1,2, 3", context_obj: Prompt = Lecturer,
+             text_model: str = "gpt-4-turbo-preview", audio_model='tts-1', voice='nova') -> AudioSegment:
     return join_snippets([
-        get_audio_from_text(t.message.content, model=audio_model, voice=voice)
-        for t in get_text_summary(text, context_obj, model=text_model).choices],
+        get_audio_from_text(t.message.content, audio_model=audio_model, voice=voice)
+        for t in get_text_summary(content, context_obj, text_model=text_model).choices],
     )
 
 
-def news_caster(text: str, context_obj: NewsCaster = NewsCaster(),
-                text_model: str = "gpt-4-turbo-preview", audio_model='tts-1', voice='nova') -> AudioSegment:
-    return join_snippets([
-        get_audio_from_text(t.message.content, model=audio_model, voice=voice)
-        for t in get_text_summary(text, context_obj, model=text_model).choices],
-    )
